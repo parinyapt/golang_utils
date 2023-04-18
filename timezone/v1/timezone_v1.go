@@ -16,8 +16,7 @@ func GlobalTimezoneSetup(tz string) error {
 	if err != nil {
 		return errors.New(fmt.Sprintf("[Error][PTGUtimezone][TimezoneSetup()]->Failed to LoadLocation Timezone Config : %s", err))
 	}
-	
+
 	time.Local = loc // -> this is setting the global timezone
 	return nil
-	// https://stackoverflow.com/questions/54363451/setting-timezone-globally-in-golang
 }
