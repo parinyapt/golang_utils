@@ -9,7 +9,7 @@ import (
 
 func GlobalTimezoneSetup(tz string) error {
 	if tz == "" {
-		return errors.New("[Info][PTGUtimezone][TimezoneSetup()]->Timezone Config is empty, using default timezone")
+		return errors.New("[Info][PTGUtimezone][TimezoneSetup()]->Timezone Location Config is empty")
 	}
 
 	loc, err := time.LoadLocation(tz) 
