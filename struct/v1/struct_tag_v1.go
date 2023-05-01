@@ -1,6 +1,7 @@
 package PTGUstruct
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -18,5 +19,11 @@ func GetStructTagValue(config GetStructTagValueParam) (string, error) {
 		return "", errors.New("[Error][PTGUstruct][GetStructTagValue()]->Reflect Field Error")
 	}
 
-	return string(field.Tag.Get(config.TagName)), nil
+	value := string(field.Tag.Get(config.TagName))
+
+	if value == "" {
+		return "", errors.New(fmt.Sprintf("[Error][PTGUstruct][GetStructTagValue()]->Value of Tag '%s' in Field '%s' is Empty", config.TagName, config.FieldName))
+	}
+
+	return value, nil
 }
