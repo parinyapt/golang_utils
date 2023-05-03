@@ -25,6 +25,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return fmt.Sprintf("This field must be at least %s characters", errParam)
 	case "max":
 		return fmt.Sprintf("This field must be not longer than %s characters", errParam)
+	case "uuid":
+		return "This field must be a valid UUID"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
