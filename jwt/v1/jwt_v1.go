@@ -44,30 +44,30 @@ func Sign(config JwtSignConfig, additionalClaim interface{}) (signToken string, 
 	return stringToken, nil
 }
 
-func Validate(tokenString string, config JwtValidateConfig) (claims interface{}, err error) {
+func Validate(tokenString string, config JwtValidateConfig) (claims interface{}, isExpireOrNotValidYet bool, err error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTsignClaim{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(config.SignKey), nil
 	})
 
 	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-		return nil, errors.New("[Error][PTGUjwt][Validate()]->Unexpected signing method")
+		return nil, false, errors.New("[Error][PTGUjwt][Validate()]->Unexpected signing method")
 	}
 
 	if err != nil || !token.Valid {
 		if errors.Is(err, jwt.ErrTokenMalformed) {
-			return nil, errors.New("[Error][PTGUjwt][Validate()]->Token is Malformed")
+			return nil, false, errors.New("[Error][PTGUjwt][Validate()]->Token is Malformed")
 		} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
-			return nil, errors.New("[Error][PTGUjwt][Validate()]->Token is Expired or Not Valid Yet")
+			return nil, true, nil
 		} else if errors.Is(err, jwt.ErrTokenSignatureInvalid) {
-			return nil, errors.New("[Error][PTGUjwt][Validate()]->Token Signature is Invalid")
+			return nil, false, errors.New("[Error][PTGUjwt][Validate()]->Token Signature is Invalid")
 		}else{
-			return nil, errors.New("[Error][PTGUjwt][Validate()]->Token is Invalid")
+			return nil, false, errors.New("[Error][PTGUjwt][Validate()]->Token is Invalid")
 		}
 	}
 
 	if claims, ok := token.Claims.(*JWTsignClaim); ok {
-		return claims.Data, nil
+		return claims.Data, false, nil
 	} else {
-		return nil, errors.New("[Error][PTGUjwt][Validate()]->Unexpected claims type")
+		return nil, false, errors.New("[Error][PTGUjwt][Validate()]->Unexpected claims type")
 	}
 }
