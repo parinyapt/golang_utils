@@ -1,6 +1,6 @@
 # PTGU Validator
 
-## Usage
+## Import
 ```go
 import (
 	PTGUvalidator "github.com/parinyapt/golang_utils/validator/v1"
