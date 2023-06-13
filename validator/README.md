@@ -1,8 +1,14 @@
 # PTGU Validator
 
-## Example
+## Usage
+```go
+import (
+	PTGUvalidator "github.com/parinyapt/golang_utils/validator/v1"
+)
+```
 
-### Get Struct Tag Value v1
+## Example
+### Validate Data v1
 ```go
 type Test struct {
 	Data1 string `validate:"required,min=2,max=10" json:"data1"`
