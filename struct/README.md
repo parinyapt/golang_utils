@@ -1,7 +1,13 @@
 # PTGU Struct
 
-## Example
+## Import
+```go
+import (
+	PTGUstruct "github.com/parinyapt/golang_utils/struct/v1"
+)
+```
 
+## Example
 ### Get Struct Tag Value v1
 ```go
 type DemoStruct struct {
