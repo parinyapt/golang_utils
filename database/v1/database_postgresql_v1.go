@@ -15,7 +15,7 @@ func PostgresqlGenerateCreateTypeEnum(enumName string, enumValues []string) stri
 }
 
 func PostgresqlGenerateDropTypeEnum(enumName string) string {
-	return "DROP TYPE " + enumName + ";"
+	return "DROP TYPE IF EXISTS" + enumName + ";"
 }
 
 func PostgresqlGenerateAutoMigrateEnum(selectStruct interface{}) (string, error) {
