@@ -23,6 +23,10 @@ type EnumList struct {
 
 func main() {
   var enumList EnumList
-	fmt.Println(PTGUdatabase.PostgresqlGenerateAutoMigrateEnum("prefix_", enumList))
+	sqlcmd, err := PTGUdatabase.PostgresqlGenerateAutoMigrateEnum("prefix_", enumList)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(sqlcmd)
 }
 ```
