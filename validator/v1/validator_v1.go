@@ -28,8 +28,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return fmt.Sprintf("This field must be not longer than %s characters", errParam)
 	case "uuid":
 		return "This field must be a valid UUID"
-	case "enum":
-		return fmt.Sprintf("This field must be one of %s", strings.Replace(errParam.(string), "/", ", ", -1))
+	case "oneof":
+		return fmt.Sprintf("This field must be one of %s", strings.Replace(errParam.(string), " ", ",", -1))
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
@@ -49,8 +49,6 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 
 func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList []ValidatorErrorFieldListStruct, validatorError error) {
 	validate := validator.New()
-
-	validate.RegisterValidation("enum", EnumValidation)
 
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
@@ -73,17 +71,4 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 		return false, listValidateError, nil
 	}
 	return true, nil, nil
-}
-
-func EnumValidation(fl validator.FieldLevel) bool {
-	value := fl.Field().String()
-	allowedValues := strings.Split(fl.Param(), "/")
-
-	for _, v := range allowedValues {
-		if v == value {
-			return true
-		}
-	}
-
-	return false
 }
