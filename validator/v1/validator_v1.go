@@ -53,16 +53,26 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
 		for _, err := range err.(validator.ValidationErrors) {
-			jsonfieldname, errGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+			jsonfieldname, errJsonGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
 				SelectStruct: validateStruct,
 				FieldName:    err.Field(),
 				TagName:      "json",
 			})
-			if errGetStructTagValue != nil {
-				return false, nil, errors.Wrap(errGetStructTagValue, "[Error][PTGUvalidator][Validate()]->Get Json Field Name Error")
+			formfieldname, errFormGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+				SelectStruct: validateStruct,
+				FieldName:    err.Field(),
+				TagName:      "form",
+			})
+			urifieldname, errUriGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+				SelectStruct: validateStruct,
+				FieldName:    err.Field(),
+				TagName:      "uri",
+			})
+			if errJsonGetStructTagValue != nil && errFormGetStructTagValue != nil && errUriGetStructTagValue != nil {			
+				return false, nil, errors.Wrap(fmt.Errorf("JSON Error : %s | Form Error : %s | URI Error : %s", errJsonGetStructTagValue, errFormGetStructTagValue, errUriGetStructTagValue), "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
 			}
 			listValidateError = append(listValidateError, ValidatorErrorFieldListStruct{
-				Field:      jsonfieldname,
+				Field:      jsonfieldname + formfieldname + urifieldname,
 				InputValue: err.Value(),
 				ErrorMsg:   ValidatorErrorMessage(err.Tag(), err.Param()),
 			})
