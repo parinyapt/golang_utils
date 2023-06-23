@@ -30,6 +30,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return "This field must be a valid UUID"
 	case "oneof":
 		return fmt.Sprintf("This field must be one of %s", strings.Replace(errParam.(string), " ", ",", -1))
+	case "http_url":
+		return "This field must be a valid URL"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
