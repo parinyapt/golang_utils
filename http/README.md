@@ -60,12 +60,16 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Println(data.Header["Content-Type"])
+		fmt.Println(data.Header["Content-Type"][0])
 		fmt.Println(responseBody.Status)
 		fmt.Println(responseBody.Data.ID)
 		fmt.Println(responseBody.Data.Name)
 		fmt.Println(responseBody.Data.Salary)
 
 	} else {
+		fmt.Println(data.Header["Content-Type"])
+		fmt.Println(data.Header["Content-Type"][0])
     fmt.Println(data.StatusText)
 		panic("HTTP Request Error")
 	}
