@@ -37,13 +37,15 @@ if err != nil {
 
 ### Get Token Info by Access Token
 ```go
-tokenInfo, err := googleOAuth.GetTokenInfo(accessToken)
+tokenInfo, validateStatus, err := googleOAuth.GetTokenInfo(accessToken)
 if err != nil {
   panic(err)
 }
 fmt.Println(tokenInfo.AUD)
 fmt.Println(tokenInfo.UserID)
 fmt.Println(tokenInfo.Email)
+fmt.Println(validateStatus.Aud)
+fmt.Println(validateStatus.Exp)
 ```
 
 ### Get User Info by Access Token
