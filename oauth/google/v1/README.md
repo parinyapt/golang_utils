@@ -29,7 +29,7 @@ loginURL := googleOAuth.GenerateLoginURL("STATE")
 
 ### Get Access Token by Code
 ```go
-accessToken, err := googleOAuth.GetAccessTokenByCode("CODE")
+accessToken, err := googleOAuth.GetAccessToken("CODE")
 if err != nil {
   panic(err)
 }
