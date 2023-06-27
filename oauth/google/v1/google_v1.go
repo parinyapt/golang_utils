@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -19,8 +21,8 @@ type GoogleOAuthMethod interface {
 	GetAccessToken(code string) (accessToken string, err error)
 
 	// GetTokenInfo is a function to get token info from google server
-	GetTokenInfo(accessToken string) (returnData ReturnGoogleGetTokenInfo, err error)
-	
+	GetTokenInfo(accessToken string) (returnData ReturnGoogleGetTokenInfo, validateStatus ReturnGoogleValidateStatusGetTokenInfo, err error)
+
 	// GetUserInfo is a function to get user info from google server
 	GetUserInfo(accessToken string) (returnData ReturnGoogleGetUserInfo, err error)
 }
@@ -44,7 +46,7 @@ func (receiver *googleOAuthReceiverArgument) GetAccessToken(code string) (access
 		return "", errors.New("[Error][PTGUoauth][Google.GetAccessToken()]->Code is empty")
 	}
 
-	code, err = url.QueryUnescape(code) 
+	code, err = url.QueryUnescape(code)
 	if err != nil {
 		return "", errors.Wrap(err, "[Error][PTGUoauth][Google.GetAccessToken()]->Unescape code error")
 	}
@@ -69,9 +71,17 @@ type ReturnGoogleGetTokenInfo struct {
 	AccessType    string `json:"access_type"`
 }
 
-func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (returnData ReturnGoogleGetTokenInfo, err error) {
+type ReturnGoogleValidateStatusGetTokenInfo struct {
+	Aud bool
+	Exp bool
+}
+
+func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (returnData ReturnGoogleGetTokenInfo, validateStatus ReturnGoogleValidateStatusGetTokenInfo, err error) {
+	validateStatus.Aud = false
+	validateStatus.Exp = false
+
 	if accessToken == "" {
-		return returnData, errors.New("[Error][PTGUoauth][Google.GetTokenInfo()]->Access token is empty")
+		return returnData, validateStatus, errors.New("[Error][PTGUoauth][Google.GetTokenInfo()]->Access token is empty")
 	}
 
 	response, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
@@ -83,11 +93,11 @@ func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (r
 		},
 	})
 	if err != nil {
-		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Google.GetTokenInfo()]->Get token info from google error")
+		return returnData, validateStatus, errors.Wrap(err, "[Error][PTGUoauth][Google.GetTokenInfo()]->Get token info from google error")
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return returnData, errors.Wrap(errors.New(response.StatusText), "[Error][PTGUoauth][Google.GetTokenInfo()]->Get token info from google error")
+		return returnData, validateStatus, errors.Wrap(errors.New(response.StatusText), "[Error][PTGUoauth][Google.GetTokenInfo()]->Get token info from google error")
 	}
 
 	err = PTGUhttp.ParseJsonResponseToStruct(PTGUhttp.ParamParseJsonResponseToStruct{
@@ -95,10 +105,29 @@ func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (r
 		ResponseStruct: &returnData,
 	})
 	if err != nil {
-		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Google.GetTokenInfo()]->Parse response body to struct error")
+		return returnData, validateStatus, errors.Wrap(err, "[Error][PTGUoauth][Google.GetTokenInfo()]->Parse response body to struct error")
 	}
 
-	return returnData, nil
+	// Validate Aud
+	if returnData.AUD == receiver.oauthConfig.ClientID {
+		validateStatus.Aud = true
+	}
+
+	// Validate Exp
+	if returnData.Exp != "" {
+		exp, err := strconv.ParseInt(returnData.Exp, 10, 64)
+		if err != nil {
+			return returnData, validateStatus, errors.Wrap(err, "[Error][PTGUoauth][Google.GetTokenInfo()]->Parse exp time to int64 error")
+		}
+		exptime := time.Unix(exp, 0)
+		nowtime := time.Now()
+
+		if exptime.After(nowtime) {
+			validateStatus.Exp = true
+		}
+	}
+
+	return returnData, validateStatus, nil
 }
 
 type ReturnGoogleGetUserInfo struct {
@@ -141,5 +170,5 @@ func (receiver *googleOAuthReceiverArgument) GetUserInfo(accessToken string) (re
 		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Google.GetUserInfo()]->Parse response body to struct error")
 	}
 
-	return returnData, nil 
+	return returnData, nil
 }
