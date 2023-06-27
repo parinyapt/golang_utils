@@ -1,4 +1,4 @@
-# PTGU OAuth
+# PTGU OAuth Facebook
 
 ## Import
 ```go
