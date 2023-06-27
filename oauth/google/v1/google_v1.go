@@ -14,12 +14,15 @@ import (
 type GoogleOAuthMethod interface {
 	// GenerateOAuthURL is a function to generate oauth url for user to login
 	GenerateOAuthURL(state string) (oauthURL string)
+
 	// GetAccessToken is a function to get user access token by code that response from google
 	GetAccessToken(code string) (accessToken string, err error)
+
 	// GetTokenInfo is a function to get token info from google server
-	GetTokenInfo(accessToken string) (returnData ReturnGetTokenInfo, err error)
+	GetTokenInfo(accessToken string) (returnData ReturnGoogleGetTokenInfo, err error)
+	
 	// GetUserInfo is a function to get user info from google server
-	GetUserInfo(accessToken string) (returnData ReturnGetUserInfo, err error)
+	GetUserInfo(accessToken string) (returnData ReturnGoogleGetUserInfo, err error)
 }
 
 type googleOAuthReceiverArgument struct {
@@ -54,7 +57,7 @@ func (receiver *googleOAuthReceiverArgument) GetAccessToken(code string) (access
 	return token.AccessToken, nil
 }
 
-type ReturnGetTokenInfo struct {
+type ReturnGoogleGetTokenInfo struct {
 	UserID        string `json:"sub"`
 	AZP           string `json:"azp"`
 	AUD           string `json:"aud"`
@@ -66,7 +69,7 @@ type ReturnGetTokenInfo struct {
 	AccessType    string `json:"access_type"`
 }
 
-func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (returnData ReturnGetTokenInfo, err error) {
+func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (returnData ReturnGoogleGetTokenInfo, err error) {
 	if accessToken == "" {
 		return returnData, errors.New("[Error][PTGUoauth][Google.GetTokenInfo()]->Access token is empty")
 	}
@@ -98,7 +101,7 @@ func (receiver *googleOAuthReceiverArgument) GetTokenInfo(accessToken string) (r
 	return returnData, nil
 }
 
-type ReturnGetUserInfo struct {
+type ReturnGoogleGetUserInfo struct {
 	UserID        string `json:"id"`
 	Email         string `json:"email"`
 	VerifiedEmail bool   `json:"verified_email"`
@@ -109,7 +112,7 @@ type ReturnGetUserInfo struct {
 	Locale        string `json:"locale"`
 }
 
-func (receiver *googleOAuthReceiverArgument) GetUserInfo(accessToken string) (returnData ReturnGetUserInfo, err error) {
+func (receiver *googleOAuthReceiverArgument) GetUserInfo(accessToken string) (returnData ReturnGoogleGetUserInfo, err error) {
 	if accessToken == "" {
 		return returnData, errors.New("[Error][PTGUoauth][Google.GetUserInfo()]->Access token is empty")
 	}
