@@ -3,7 +3,7 @@
 ## Import
 ```go
 import (
-	PTGUjwt "github.com/parinyapt/golang_utils/database/v1"
+	PTGUdatabase "github.com/parinyapt/golang_utils/database/v1"
 )
 ```
 
