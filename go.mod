@@ -11,7 +11,6 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
