@@ -3,7 +3,6 @@ package PTGUstorage
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -55,8 +54,6 @@ func (receiver *storageMinioReceiverArgument) UploadImageFromURL(param ParamUplo
 	if response.StatusCode != http.StatusOK {
 		return uploadInfo, errors.Wrap(err, "[Error][PTGUstorage][Minio.UploadImageFromURL()]->Fail to get image from url")
 	}
-
-	fmt.Println(param.ResizeConfig)
 
 	if param.ResizeConfig == nil {
 		uploadInfo, err = receiver.minioClient.PutObject(context.Background(), param.StorageBucket, param.StorageObjectName, bytes.NewReader(response.ResponseBody), response.ContentLength, param.StoragePutObjectOptions)
