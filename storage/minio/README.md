@@ -35,7 +35,7 @@ uploadInfo, err := minioUtils.UploadImageFromURL(PTGUstorage.ParamUploadImageFro
   ImageURL:          "IMAGE_URL",
   ResizeConfig:      &PTGUstorage.ParamUploadImageFromURLresizeConfig{
     Width: 100, 
-    Height: 100
+    Height: 100,
   },
 })
 
