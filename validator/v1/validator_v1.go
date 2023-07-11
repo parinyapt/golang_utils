@@ -28,6 +28,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return fmt.Sprintf("This field must be not longer than %s characters", errParam)
 	case "uuid":
 		return "This field must be a valid UUID"
+	case "uuid4":
+		return "This field must be a valid UUID"
 	case "oneof":
 		return fmt.Sprintf("This field must be one of %s", strings.Replace(errParam.(string), " ", ",", -1))
 	case "http_url":
