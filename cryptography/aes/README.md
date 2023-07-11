@@ -13,7 +13,7 @@ import (
 - Key must be 16 characters or 32 characters or more
 ```go
 key := "12345678901234561234567890123456"
-plaintext := "Hello World"
+plaintext := "Hello World1"
 
 fmt.Println("key: ", key)
 fmt.Println("Plaintext: ", plaintext)
@@ -23,8 +23,8 @@ encryptText, err := PTGUcryptography.Encrypt(key, string(plaintext))
 if err != nil {
   panic(err)
 }
-encryptTextBase64 := base64.StdEncoding.EncodeToString([]byte(encryptText))
-encryptTextHex := hex.EncodeToString([]byte(encryptText))
+encryptTextBase64 := base64.StdEncoding.EncodeToString(encryptText)
+encryptTextHex := hex.EncodeToString(encryptText)
 fmt.Printf("Encrypt Text: %x\n", encryptText)
 fmt.Printf("Encrypt Text Base64 Encode: %s\n", encryptTextBase64)
 fmt.Printf("Encrypt Text Hex Encode: %s\n", encryptTextHex)
@@ -38,12 +38,12 @@ encryptTextHexdecode, err := hex.DecodeString(encryptTextHex)
 if err != nil {
   panic(err)
 }
-decryptTextBase64, err := PTGUcryptography.Decrypt(key, string(encryptTextBase64decode))
+decryptTextBase64, err := PTGUcryptography.Decrypt(key, encryptTextBase64decode)
 if err != nil {
   panic(err)
 }
 fmt.Printf("Decrypt Text from Base64: %s\n", decryptTextBase64)
-decryptTextHex, err := PTGUcryptography.Decrypt(key, string(encryptTextHexdecode))
+decryptTextHex, err := PTGUcryptography.Decrypt(key, encryptTextHexdecode)
 if err != nil {
   panic(err)
 }

@@ -11,39 +11,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Encrypt(secretKey string, plainText string) (ciphertext string, err error) {
+func Encrypt(secretKey string, plainText string) (ciphertext []byte, err error) {
 	var key []byte
 	if len(secretKey) > 32 {
 		key, err = hex.DecodeString(secretKey)
 		if err != nil {
-			return "", errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->Decode secret key error")
+			return []byte{}, errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->Decode secret key error")
 		}
 	} else if len(secretKey) == 16 || len(secretKey) == 32 {
 		key = []byte(secretKey)
 	} else {
-		return "", errors.New("[Error][PTGUcryptography][AES.Encrypt()]->Secret key length invalid")
+		return []byte{}, errors.New("[Error][PTGUcryptography][AES.Encrypt()]->Secret key length invalid")
 	}
 	plaintext := []byte(plainText)
 
 	aes, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return "", errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->New cipher error")
+		return []byte{}, errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->New cipher error")
 	}
 
 	gcm, err := cipher.NewGCM(aes)
 	if err != nil {
-		return "", errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->New GCM error")
+		return []byte{}, errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->New GCM error")
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->Read full error")
+		return []byte{}, errors.Wrap(err, "[Error][PTGUcryptography][AES.Encrypt()]->Read full error")
 	}
 
-	return string(gcm.Seal(nonce, nonce, plaintext, nil)), nil
+	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-func Decrypt(secretKey string, ciphertext string) (plaintext string, err error) {
+func Decrypt(secretKey string, ciphertext []byte) (plaintext string, err error) {
 	var key []byte
 	if len(secretKey) > 32 {
 		key, err = hex.DecodeString(secretKey)
