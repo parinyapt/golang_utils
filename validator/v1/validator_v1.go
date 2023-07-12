@@ -34,6 +34,14 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return fmt.Sprintf("This field must be one of %s", strings.Replace(errParam.(string), " ", ",", -1))
 	case "http_url":
 		return "This field must be a valid URL"
+	case "base64":
+		return "This field must be a valid base64 string"
+	case "startswith":
+		return fmt.Sprintf("This field must be start with %s", errParam)
+	case "endswith":
+		return fmt.Sprintf("This field must be end with %s", errParam)
+	case "jwt":
+		return "This field must be a valid JWT"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
@@ -72,11 +80,16 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 				FieldName:    err.Field(),
 				TagName:      "uri",
 			})
+			headerfieldname, errHeaderGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+				SelectStruct: validateStruct,
+				FieldName:    err.Field(),
+				TagName:      "header",
+			})
 			if errJsonGetStructTagValue != nil && errFormGetStructTagValue != nil && errUriGetStructTagValue != nil {			
-				return false, nil, errors.Wrap(fmt.Errorf("JSON Error : %s | Form Error : %s | URI Error : %s", errJsonGetStructTagValue, errFormGetStructTagValue, errUriGetStructTagValue), "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
+				return false, nil, errors.Wrap(fmt.Errorf("JSON Error : %s | Form Error : %s | URI Error : %s | Header Error : %s", errJsonGetStructTagValue, errFormGetStructTagValue, errUriGetStructTagValue, errHeaderGetStructTagValue), "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
 			}
 			listValidateError = append(listValidateError, ValidatorErrorFieldListStruct{
-				Field:      jsonfieldname + formfieldname + urifieldname,
+				Field:      jsonfieldname + formfieldname + urifieldname + headerfieldname,
 				InputValue: err.Value(),
 				ErrorMsg:   ValidatorErrorMessage(err.Tag(), err.Param()),
 			})
