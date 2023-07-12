@@ -85,7 +85,7 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 				FieldName:    err.Field(),
 				TagName:      "header",
 			})
-			if errJsonGetStructTagValue != nil && errFormGetStructTagValue != nil && errUriGetStructTagValue != nil {			
+			if errJsonGetStructTagValue != nil && errFormGetStructTagValue != nil && errUriGetStructTagValue != nil && errHeaderGetStructTagValue != nil {			
 				return false, nil, errors.Wrap(fmt.Errorf("JSON Error : %s | Form Error : %s | URI Error : %s | Header Error : %s", errJsonGetStructTagValue, errFormGetStructTagValue, errUriGetStructTagValue, errHeaderGetStructTagValue), "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
 			}
 			listValidateError = append(listValidateError, ValidatorErrorFieldListStruct{
