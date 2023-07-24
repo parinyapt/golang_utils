@@ -53,6 +53,12 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return "This field must be a valid time"
 	case "iso8601datetime":
 		return "This field must be a valid ISO8601 datetime"
+	case "alpha":
+		return "This field must contain letters only"
+	case "iso3166_alpha2":
+		return "This field must be a valid ISO3166 alpha-2 country code"
+	case "iso3166_alpha3":
+		return "This field must be a valid ISO3166 alpha-3 country code"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
@@ -73,7 +79,9 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList []ValidatorErrorFieldListStruct, validatorError error) {
 	validate := validator.New()
 
-	validate.RegisterValidation("iso8601datetime", validateISO8601DateTime)
+	validate.RegisterValidation("iso8601datetime", customeValidateISO8601DateTime)
+	validate.RegisterValidation("date", customeValidateDate)
+	validate.RegisterValidation("time", customeValidateTime)
 
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
@@ -130,9 +138,23 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 	return true, nil, nil
 }
 
-func validateISO8601DateTime(fl validator.FieldLevel) bool {
-	ISO8601DateRegexString := "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-][01]\\d:[0-5]\\d)$"
-  ISO8601DateRegex := regexp.MustCompile(ISO8601DateRegexString)
+func customeValidateISO8601DateTime(fl validator.FieldLevel) bool {
+	regexString := "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-][01]\\d:[0-5]\\d)$"
+  regex := regexp.MustCompile(regexString)
 	
-  return ISO8601DateRegex.MatchString(fl.Field().String())
+  return regex.MatchString(fl.Field().String())
+}
+
+func customeValidateDate(fl validator.FieldLevel) bool {
+	regexString := "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)$"
+	regex := regexp.MustCompile(regexString)
+	
+	return regex.MatchString(fl.Field().String())
+}
+
+func customeValidateTime(fl validator.FieldLevel) bool {
+	regexString := "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?$"
+	regex := regexp.MustCompile(regexString)
+	
+	return regex.MatchString(fl.Field().String())
 }
