@@ -2,6 +2,7 @@ package PTGUvalidator
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -50,7 +51,7 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return "This field must be a valid date"
 	case "time":
 		return "This field must be a valid time"
-	case "iso8601":
+	case "iso8601datetime":
 		return "This field must be a valid ISO8601 datetime"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
@@ -71,6 +72,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 
 func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList []ValidatorErrorFieldListStruct, validatorError error) {
 	validate := validator.New()
+
+	validate.RegisterValidation("iso8601datetime", validateISO8601DateTime)
 
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
@@ -125,4 +128,11 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 		return false, listValidateError, nil
 	}
 	return true, nil, nil
+}
+
+func validateISO8601DateTime(fl validator.FieldLevel) bool {
+	ISO8601DateRegexString := "^(?:[1-9]\\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-][01]\\d:[0-5]\\d)$"
+  ISO8601DateRegex := regexp.MustCompile(ISO8601DateRegexString)
+	
+  return ISO8601DateRegex.MatchString(fl.Field().String())
 }
