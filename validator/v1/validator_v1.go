@@ -42,6 +42,16 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return fmt.Sprintf("This field must be end with %s", errParam)
 	case "jwt":
 		return "This field must be a valid JWT"
+	case "e164":
+		return "This field must be a valid E.164 phone number"
+	case "datetime":
+		return "This field must be a valid datetime"
+	case "date":
+		return "This field must be a valid date"
+	case "time":
+		return "This field must be a valid time"
+	case "iso8601":
+		return "This field must be a valid ISO8601 datetime"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
@@ -88,10 +98,27 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 			if errJsonGetStructTagValue != nil && errFormGetStructTagValue != nil && errUriGetStructTagValue != nil && errHeaderGetStructTagValue != nil {			
 				return false, nil, errors.Wrap(fmt.Errorf("JSON Error : %s | Form Error : %s | URI Error : %s | Header Error : %s", errJsonGetStructTagValue, errFormGetStructTagValue, errUriGetStructTagValue, errHeaderGetStructTagValue), "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
 			}
+
+			customErrorMessage, errCustomErrorMessage := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+				SelectStruct: validateStruct,
+				FieldName:    err.Field(),
+				TagName:      "validateErrorMessage",
+			})
+			if errCustomErrorMessage != nil {
+				// Not found custom error message tag 'validateErrorMessage' in struct
+				customErrorMessage = ValidatorErrorMessage(err.Tag(), err.Param())
+			} else {
+				if customErrorMessage == "HIDE" {
+					customErrorMessage = ""
+				} else if customErrorMessage == "DEFAULT" {
+					customErrorMessage = "This field is invalid"
+				}
+			}
+
 			listValidateError = append(listValidateError, ValidatorErrorFieldListStruct{
 				Field:      jsonfieldname + formfieldname + urifieldname + headerfieldname,
 				InputValue: err.Value(),
-				ErrorMsg:   ValidatorErrorMessage(err.Tag(), err.Param()),
+				ErrorMsg:   customErrorMessage,
 			})
 		}
 
