@@ -2,13 +2,14 @@ package PTGUvalidator
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/pkg/errors"
 
-	PTGUstruct "github.com/parinyapt/golang_utils/struct/v1"
+	PTGUstruct "github.com/parinyapt/golang_utils/struct/v2"
 )
 
 type ValidatorErrorFieldListStruct struct {
@@ -67,8 +68,6 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 	// 	return "This field must be equal to %s"
 	// case "ne":
 	// 	return "This field must not be equal to %s"
-	// case "oneof":
-	// 	return "This field must be one of %s"
 	// case "unique":
 	// 	return "This field must be unique"
 	}
@@ -86,34 +85,50 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
 		for _, err := range err.(validator.ValidationErrors) {
-			jsonfieldname, errJsonGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
-				SelectStruct: validateStruct,
-				FieldName:    err.Field(),
-				TagName:      "json",
-			})
-			formfieldname, errFormGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
-				SelectStruct: validateStruct,
-				FieldName:    err.Field(),
-				TagName:      "form",
-			})
-			urifieldname, errUriGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
-				SelectStruct: validateStruct,
-				FieldName:    err.Field(),
-				TagName:      "uri",
-			})
-			headerfieldname, errHeaderGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
-				SelectStruct: validateStruct,
-				FieldName:    err.Field(),
-				TagName:      "header",
-			})
-			if errJsonGetStructTagValue != nil && errFormGetStructTagValue != nil && errUriGetStructTagValue != nil && errHeaderGetStructTagValue != nil {			
-				return false, nil, errors.Wrap(fmt.Errorf("JSON Error : %s | Form Error : %s | URI Error : %s | Header Error : %s", errJsonGetStructTagValue, errFormGetStructTagValue, errUriGetStructTagValue, errHeaderGetStructTagValue), "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
+
+			errorStruct := validateStruct
+			var customErrorMessage string
+			var errCustomErrorMessage error
+
+			// spit field name (ex.User.Info.Name) to array
+			structInfo := strings.Split(err.StructNamespace(), ".")
+			if len(structInfo) <= 1 {
+				return false, nil, errors.New("[Error][PTGUvalidator][Validate()]->Field Info Error")
 			}
 
-			customErrorMessage, errCustomErrorMessage := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
-				SelectStruct: validateStruct,
-				FieldName:    err.Field(),
-				TagName:      "validateErrorMessage",
+			currentStructFieldName := 1
+
+			customFieldName, errGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+				SelectStruct: errorStruct,
+				FieldName:    structInfo[currentStructFieldName],
+				TagName:      []string{"json", "form", "uri", "header"},
+			})
+			if errGetStructTagValue != nil {			
+				return false, nil, errors.Wrap(errGetStructTagValue, "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
+			}
+
+			if len(structInfo) > 2 {
+				for i := 2; i < len(structInfo); i++ {
+					errorStruct = reflect.ValueOf(errorStruct).FieldByName(structInfo[currentStructFieldName]).Interface()
+					currentStructFieldName = currentStructFieldName + 1 
+
+					tempCustomFieldName, errGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+						SelectStruct: errorStruct,
+						FieldName:    structInfo[currentStructFieldName],
+						TagName:      []string{"json", "form", "uri", "header"},
+					})
+					if errGetStructTagValue != nil {			
+						return false, nil, errors.Wrap(errGetStructTagValue, "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
+					}
+				
+					customFieldName = customFieldName + "." + tempCustomFieldName
+				}
+			}
+
+			customErrorMessage, errCustomErrorMessage = PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+				SelectStruct: errorStruct,
+				FieldName:    structInfo[currentStructFieldName],
+				TagName:      []string{"validateErrorMessage"},
 			})
 			if errCustomErrorMessage != nil {
 				// Not found custom error message tag 'validateErrorMessage' in struct
@@ -127,7 +142,7 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 			}
 
 			listValidateError = append(listValidateError, ValidatorErrorFieldListStruct{
-				Field:      jsonfieldname + formfieldname + urifieldname + headerfieldname,
+				Field:      customFieldName,
 				InputValue: err.Value(),
 				ErrorMsg:   customErrorMessage,
 			})
