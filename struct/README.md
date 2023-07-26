@@ -31,3 +31,28 @@ func main() {
 	fmt.Println(value)
 }
 ```
+
+### Get Struct Tag Value v2
+- The first value that is not empty will be returned
+```go
+type DemoStruct struct {
+	Abc string `json:"abc" form:"abcd" uri:"abce" header:"abcf"`
+	Def string `json:"def"`
+	Num int `json:"num"`
+}
+
+func main() {
+	value, err := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
+		SelectStruct: demostruct{},
+		FieldName:    "Abc",
+		TagName:      []string{"json", "form", "uri", "header"},
+	})
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	
+	fmt.Println(value)
+}
+```
