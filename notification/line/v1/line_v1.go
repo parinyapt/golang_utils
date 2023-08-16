@@ -47,7 +47,7 @@ func LineNotify(lineToken string, param LineNotifyInputOption) (err error) {
 		return errors.Wrap(err, "[Error][PTGUnotification][LineNotify()]->HTTPRequest error")
 	}
 
-	if data.StatusCode == http.StatusOK {
+	if data.StatusCode != http.StatusOK {
 		return errors.New("[Error][PTGUnotification][LineNotify()]->Response status code is not 200")
 	}
 

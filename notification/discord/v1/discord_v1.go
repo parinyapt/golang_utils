@@ -47,7 +47,7 @@ func DiscordNotify(webhook DiscordWebhook, param DiscordNotifyInputOption) (err 
 		return errors.Wrap(err, "[Error][PTGUnotification][DiscordNotify()]->HTTPRequest error")
 	}
 
-	if data.StatusCode == http.StatusOK {
+	if data.StatusCode != http.StatusOK {
 		return errors.New("[Error][PTGUnotification][DiscordNotify()]->Response status code is not 200")
 	}
 
