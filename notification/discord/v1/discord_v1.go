@@ -31,7 +31,7 @@ func DiscordNotify(webhook DiscordWebhook, param DiscordNotifyInputOption) (err 
 		return errors.New("[Error][PTGUnotification][DiscordNotify()]->Content is empty")
 	}
 
-	_, err = PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
+	data, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
 		RequestTimeout: 5 * time.Second,
 		Type:           PTGUhttp.TypeJSON,
 		Method:         http.MethodPost,
@@ -45,6 +45,10 @@ func DiscordNotify(webhook DiscordWebhook, param DiscordNotifyInputOption) (err 
 	})
 	if err != nil {
 		return errors.Wrap(err, "[Error][PTGUnotification][DiscordNotify()]->HTTPRequest error")
+	}
+
+	if data.StatusCode == http.StatusOK {
+		return errors.New("[Error][PTGUnotification][DiscordNotify()]->Response status code is not 200")
 	}
 
 	return nil

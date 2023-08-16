@@ -29,7 +29,7 @@ func LineNotify(lineToken string, param LineNotifyInputOption) (err error) {
 		return errors.New("[Error][PTGUnotification][LineNotify()]->Message is empty")
 	}
 
-	_, err = PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
+	data, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
 		RequestTimeout: 5 * time.Second,
 		Type:           PTGUhttp.TypeFormURLEncoded,
 		Method:         http.MethodPost,
@@ -45,6 +45,10 @@ func LineNotify(lineToken string, param LineNotifyInputOption) (err error) {
 	})
 	if err != nil {
 		return errors.Wrap(err, "[Error][PTGUnotification][LineNotify()]->HTTPRequest error")
+	}
+
+	if data.StatusCode == http.StatusOK {
+		return errors.New("[Error][PTGUnotification][LineNotify()]->Response status code is not 200")
 	}
 
 	return nil
