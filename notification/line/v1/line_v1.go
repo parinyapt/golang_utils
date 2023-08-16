@@ -48,7 +48,7 @@ func LineNotify(lineToken string, param LineNotifyInputOption) (err error) {
 	}
 
 	if data.StatusCode != http.StatusOK {
-		return errors.New("[Error][PTGUnotification][LineNotify()]->Response status code is not 200")
+		return errors.New("[Error][PTGUnotification][LineNotify()]->Response status code " + strconv.Itoa(data.StatusCode) + " instead of 200")
 	}
 
 	return nil

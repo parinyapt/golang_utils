@@ -2,6 +2,7 @@ package PTGUnotification
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -47,8 +48,8 @@ func DiscordNotify(webhook DiscordWebhook, param DiscordNotifyInputOption) (err 
 		return errors.Wrap(err, "[Error][PTGUnotification][DiscordNotify()]->HTTPRequest error")
 	}
 
-	if data.StatusCode != http.StatusOK {
-		return errors.New("[Error][PTGUnotification][DiscordNotify()]->Response status code is not 200")
+	if data.StatusCode != http.StatusNoContent {
+		return errors.New("[Error][PTGUnotification][DiscordNotify()]->Response status code " + strconv.Itoa(data.StatusCode) + " instead of 204")
 	}
 
 	return nil
