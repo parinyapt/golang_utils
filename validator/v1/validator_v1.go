@@ -60,6 +60,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return "This field must be a valid ISO3166 alpha-2 country code"
 	case "iso3166_alpha3":
 		return "This field must be a valid ISO3166 alpha-3 country code"
+	case "alpha_space":
+		return "This field must contain letters and spaces only"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
@@ -81,6 +83,7 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 	validate.RegisterValidation("iso8601datetime", customeValidateISO8601DateTime)
 	validate.RegisterValidation("date", customeValidateDate)
 	validate.RegisterValidation("time", customeValidateTime)
+	validate.RegisterValidation("alpha_space", customeValidateAlphaSpace)
 
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
@@ -170,6 +173,17 @@ func customeValidateDate(fl validator.FieldLevel) bool {
 func customeValidateTime(fl validator.FieldLevel) bool {
 	regexString := "^(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?$"
 	regex := regexp.MustCompile(regexString)
+	
+	return regex.MatchString(fl.Field().String())
+}
+
+func customeValidateAlphaSpace(fl validator.FieldLevel) bool {
+	regexString := `^[a-zA-Z\s]+$`
+	regex := regexp.MustCompile(regexString)
+
+	if (fl.Field().String()[0] == ' ') || (fl.Field().String()[len(fl.Field().String())-1] == ' ') {
+		return false
+	}
 	
 	return regex.MatchString(fl.Field().String())
 }
