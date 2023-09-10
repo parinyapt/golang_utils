@@ -488,9 +488,14 @@ func (receiver *appleOAuthReceiverArgument) RevokeToken(token string, tokenType 
 		return errors.New("[Error][PTGUoauth][Apple.RevokeToken()]->Token Type is empty")
 	}
 
+	clientSecret, err := receiver.GenerateClientSecret(5 * time.Minute)
+	if err != nil {
+		return errors.Wrap(err, "[Error][PTGUoauth][Apple.RevokeToken()]->Generate Client Secret Error")
+	}
+
 	requestBody := requestBodyRevokeToken{
 		ClientID:     receiver.oauthConfig.ClientID,
-		ClientSecret: receiver.oauthConfig.PrivateKey,
+		ClientSecret: clientSecret,
 		Token:        token,
 		TokenType:    tokenType,
 	}
