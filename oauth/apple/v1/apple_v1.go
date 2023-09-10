@@ -1,9 +1,12 @@
 package PTGUoauth
 
 import (
+	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,8 +39,8 @@ type AppleOAuthMethod interface {
 	// GetIDTokenInfo is a function to get information from id token
 	GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error)
 
-	// GetIDTokenInfoWithKeyValidation is a function to get verify id token from apple and get information from id token
-	// GetIDTokenInfoWithKeyValidation(idToken string, option OptionAppleGetIDTokenInfoWithKeyValidation) (returnData ReturnAppleGetIDTokenInfoWithKeyValidation, isValidatePass bool, err error)
+	// GetIDTokenInfoWithPublicKeyValidation is a function to get verify id token from apple and get information from id token
+	GetIDTokenInfoWithPublicKeyValidation(idToken string, option OptionAppleGetIDTokenInfoWithPublicKeyValidation) (returnData AppleIDTokenInfo, isValidatePass bool, err error)
 
 	// GetApplePublicKey is a function to get apple's public key for verifying token signature
 	GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error)
@@ -179,7 +182,87 @@ func GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error) {
 	return returnData, nil
 }
 
-// !GetIDTokenInfoWithKeyValidation
+// !GetIDTokenInfoWithPublicKeyValidation
+type OptionAppleGetIDTokenInfoWithPublicKeyValidation struct {
+	NotIssuedBeforeTime  time.Time
+	ExpiresAfterIssuedIn time.Duration
+}
+
+func (receiver *appleOAuthReceiverArgument) GetIDTokenInfoWithPublicKeyValidation(idToken string, option OptionAppleGetIDTokenInfoWithPublicKeyValidation) (returnData AppleIDTokenInfo, isValidatePass bool, err error) {
+	isValidatePass = false
+
+	if idToken == "" {
+		return returnData, isValidatePass, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->ID Token is empty")
+	}
+
+	token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
+		// Fetch Apple's public key
+		publicKey, err := GetApplePublicKey(token.Header["kid"].(string))
+		if err != nil {
+			return nil, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Get Apple Public Key Error")
+		}
+		// Parse Apple's public key to *rsa.PublicKey
+		modulus, _ := base64.RawURLEncoding.DecodeString(publicKey.N)
+		exponent, _ := base64.RawURLEncoding.DecodeString(publicKey.E)
+		return &rsa.PublicKey{
+			N: new(big.Int).SetBytes(modulus),
+			E: int(new(big.Int).SetBytes(exponent).Uint64()),
+		}, nil
+	})
+
+	if err != nil || !token.Valid {
+		if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+			return returnData, isValidatePass, nil
+		} else {
+			return returnData, isValidatePass, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Token is Invalid")
+		}
+	}
+
+	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+		return returnData, isValidatePass, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Unexpected signing method")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return returnData, isValidatePass, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Unexpected claims type")
+	}
+
+	claimsJsonData, err := json.Marshal(claims)
+	if err != nil {
+		return returnData, isValidatePass, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Marshal Claims Error")
+	}
+	var appleIDTokenInfoStruct AppleIDTokenInfo
+	err = json.Unmarshal(claimsJsonData, &appleIDTokenInfoStruct)
+	if err != nil {
+		return returnData, isValidatePass, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Unmarshal Claims Error")
+	}
+
+	if appleIDTokenInfoStruct.Issuer != "https://appleid.apple.com" {
+		return returnData, isValidatePass, nil
+	}
+
+	if appleIDTokenInfoStruct.Audience != receiver.oauthConfig.ClientID {
+		return returnData, isValidatePass, nil
+	}
+
+	if option.NotIssuedBeforeTime != (time.Time{}) {
+		if time.Unix(appleIDTokenInfoStruct.IssuedAt, 0).Before(option.NotIssuedBeforeTime) {
+			return returnData, isValidatePass, nil
+		}
+	}
+
+	if option.ExpiresAfterIssuedIn != 0 {
+		if time.Now().After(time.Unix(appleIDTokenInfoStruct.IssuedAt, 0).Add(option.ExpiresAfterIssuedIn)) {
+			return returnData, isValidatePass, nil
+		}
+	}
+
+	isValidatePass = true
+	returnData = appleIDTokenInfoStruct
+
+	return returnData, isValidatePass, nil
+}
+
 // type ReturnAppleGetIDTokenInfo struct {
 // 	Data struct {
 // 		Subject        string `json:"sub"`
@@ -199,37 +282,37 @@ func GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error) {
 // 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->ID Token is empty")
 // 	}
 
-// 	token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
-// 		// Fetch Apple's public key
-// 		publicKey, err := GetApplePublicKey(token.Header["kid"].(string))
-// 		if err != nil {
-// 			return nil, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Get Apple Public Key Error")
-// 		}
-// 		// Parse Apple's public key to *rsa.PublicKey
-// 		modulus, _ := base64.RawURLEncoding.DecodeString(publicKey.N)
-// 		exponent, _ := base64.RawURLEncoding.DecodeString(publicKey.E)
-// 		return &rsa.PublicKey{
-// 			N: new(big.Int).SetBytes(modulus),
-// 			E: int(new(big.Int).SetBytes(exponent).Uint64()),
-// 		}, nil
-// 	})
-
-// 	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected signing method")
+// token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
+// 	// Fetch Apple's public key
+// 	publicKey, err := GetApplePublicKey(token.Header["kid"].(string))
+// 	if err != nil {
+// 		return nil, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Get Apple Public Key Error")
 // 	}
+// 	// Parse Apple's public key to *rsa.PublicKey
+// 	modulus, _ := base64.RawURLEncoding.DecodeString(publicKey.N)
+// 	exponent, _ := base64.RawURLEncoding.DecodeString(publicKey.E)
+// 	return &rsa.PublicKey{
+// 		N: new(big.Int).SetBytes(modulus),
+// 		E: int(new(big.Int).SetBytes(exponent).Uint64()),
+// 	}, nil
+// })
 
-// 	claims, ok := token.Claims.(jwt.MapClaims)
-// 	if !ok {
-// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected claims type")
-// 	}
+// if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected signing method")
+// }
 
-// 	if claims["iss"] != "https://appleid.apple.com" {
-// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->iss is not https://appleid.apple.com")
-// 	}
+// claims, ok := token.Claims.(jwt.MapClaims)
+// if !ok {
+// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected claims type")
+// }
 
-// 	if claims["aud"] != receiver.oauthConfig.ClientID {
-// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->aud is not client id")
-// 	}
+// if claims["iss"] != "https://appleid.apple.com" {
+// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->iss is not https://appleid.apple.com")
+// }
+
+// if claims["aud"] != receiver.oauthConfig.ClientID {
+// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->aud is not client id")
+// }
 
 // 	if err != nil || !token.Valid {
 // 		if errors.Is(err, jwt.ErrTokenMalformed) {
