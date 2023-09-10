@@ -1,10 +1,13 @@
 package PTGUoauth
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	PTGUhttp "github.com/parinyapt/golang_utils/http/v1"
@@ -27,6 +30,9 @@ type AppleOAuthMethod interface {
 	// Condition for generate oauth url (https://developer.apple.com/documentation/sign_in_with_apple/sign_in_with_apple_js/incorporating_sign_in_with_apple_into_other_platforms)
 	GenerateOAuthURL(option OptionAppleGenerateOAuthURL) (oauthURL string)
 
+	// GenerateClientSecret is a function to generate client secret for validate token
+	GenerateClientSecret() (clientSecret string, err error)
+
 	// GetIDTokenInfo is a function to get information from id token
 	GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error)
 
@@ -35,9 +41,6 @@ type AppleOAuthMethod interface {
 
 	// GetApplePublicKey is a function to get apple's public key for verifying token signature
 	GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error)
-
-	// GenerateClientSecret is a function to generate client secret for validate token
-	GenerateClientSecret() (clientSecret string, err error)
 }
 
 type AppleOAuthConfig struct {
@@ -96,6 +99,37 @@ func (receiver *appleOAuthReceiverArgument) GenerateOAuthURL(option OptionAppleG
 	return OAuthURL + "?" + queryparam
 }
 
+// !GenerateClientSecret
+func (receiver *appleOAuthReceiverArgument) GenerateClientSecret(expireIn time.Duration) (clientSecret string, err error) {
+	block, _ := pem.Decode([]byte(receiver.oauthConfig.PrivateKey))
+	if block == nil {
+		return "", errors.New("[Error][PTGUoauth][Apple.GenerateClientSecret()]->Failed to decode PEM block containing private key")
+	}
+
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return "", errors.Wrap(err, "[Error][PTGUoauth][Apple.GenerateClientSecret()]->Parse PKCS8 Private Key Error")
+	}
+
+	claims := &jwt.RegisteredClaims{
+		Issuer:    receiver.oauthConfig.TeamID,
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireIn)),
+		Audience:  jwt.ClaimStrings{"https://appleid.apple.com"},
+		Subject:   receiver.oauthConfig.ClientID,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token.Header["alg"] = "ES256"
+	token.Header["kid"] = receiver.oauthConfig.KeyID
+
+	stringToken, err := token.SignedString(privateKey)
+	if err != nil {
+		return "", errors.Wrap(err, "[Error][PTGUoauth][Apple.GenerateClientSecret()]->Signed String Error")
+	}
+
+	return stringToken, nil
+}
+
 // !GetIDTokenInfo
 type AppleIDTokenInfo struct {
 	Issuer         string  `json:"iss"`
@@ -111,6 +145,7 @@ type AppleIDTokenInfo struct {
 	RealUserStatus *int    `json:"real_user_status,omitempty"`
 	TransferSub    *string `json:"transfer_sub,omitempty"`
 	CHash          *string `json:"c_hash,omitempty"`
+	AtHash         *string `json:"at_hash,omitempty"`
 	AuthTime       *int64  `json:"auth_time,omitempty"`
 }
 
@@ -140,7 +175,7 @@ func GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error) {
 	}
 
 	returnData = appleIDTokenInfoStruct
-	
+
 	return returnData, nil
 }
 
