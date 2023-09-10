@@ -48,6 +48,12 @@ type AppleOAuthMethod interface {
 
 	// ValidateAuthorizationCode is a function to validate authorization code from apple and get access token / id token / refresh token [required platform = PlatformWeb or PlatformApp]
 	ValidateAuthorizationCode(authorizationCode string, platform string) (returnData AppleValidateAuthorizationCodeResponse, err error)
+
+	// ValidateRefreshToken is a function to validate refresh token from apple and get access token / id token
+	ValidateRefreshToken(refreshToken string) (returnData AppleValidateRefreshTokenResponse, err error)
+
+	// RevokeToken is a function to revoke token from apple [required tokenType = TypeAccessToken or TypeRefreshToken]
+	RevokeToken(token string, tokenType string) (err error)
 }
 
 type AppleOAuthConfig struct {
@@ -311,15 +317,15 @@ func GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error
 	return returnData, errors.New("[Error][PTGUoauth][GetApplePublicKey()]->Public Key Not Found")
 }
 
+// !ValidateAuthorizationCode
 type AppleValidateAuthorizationCodeResponse struct {
-	AccessToken  string  `json:"access_token"`
-	TokenType    string  `json:"token_type"`
-	ExpiresIn    int     `json:"expires_in"`
-	IDToken      string  `json:"id_token"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
-// !ValidateAuthorizationCode
 type requestBodyValidateAuthorizationCodeFromWeb struct {
 	ClientID     string `form:"client_id"`
 	ClientSecret string `form:"client_secret"`
@@ -359,22 +365,22 @@ func (receiver *appleOAuthReceiverArgument) ValidateAuthorizationCode(authorizat
 			GrantType:    "authorization_code",
 			RedirectURI:  receiver.oauthConfig.RedirectURL,
 		}
-	}else if platform == PlatformApp {
+	} else if platform == PlatformApp {
 		requestBody = requestBodyValidateAuthorizationCodeFromApp{
 			ClientID:     receiver.oauthConfig.ClientID,
 			ClientSecret: clientSecret,
 			Code:         authorizationCode,
 			GrantType:    "authorization_code",
 		}
-	}else{
+	} else {
 		return returnData, errors.New("[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->Platform is invalid")
 	}
 
 	response, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
 		RequestTimeout: 10 * time.Second,
-		Type:   PTGUhttp.TypeFormURLEncoded,
-		Method: http.MethodPost,
-		URL:    ValidateTokenURL,
+		Type:           PTGUhttp.TypeFormURLEncoded,
+		Method:         http.MethodPost,
+		URL:            ValidateTokenURL,
 		Headers: map[string]string{
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
@@ -397,4 +403,115 @@ func (receiver *appleOAuthReceiverArgument) ValidateAuthorizationCode(authorizat
 	}
 
 	return returnData, nil
+}
+
+// !ValidateRefreshToken
+type AppleValidateRefreshTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int    `json:"expires_in"`
+	IDToken     string `json:"id_token"`
+}
+
+type requestBodyValidateRefreshToken struct {
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
+	RefreshToken string `form:"refresh_token"`
+	GrantType    string `form:"grant_type"`
+}
+
+func (receiver *appleOAuthReceiverArgument) ValidateRefreshToken(refreshToken string) (returnData AppleValidateRefreshTokenResponse, err error) {
+	if refreshToken == "" {
+		return returnData, errors.New("[Error][PTGUoauth][Apple.ValidateRefreshToken()]->Refresh Token is empty")
+	}
+
+	clientSecret, err := receiver.GenerateClientSecret(5 * time.Minute)
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.ValidateRefreshToken()]->Generate Client Secret Error")
+	}
+
+	requestBody := requestBodyValidateRefreshToken{
+		ClientID:     receiver.oauthConfig.ClientID,
+		ClientSecret: clientSecret,
+		RefreshToken: refreshToken,
+		GrantType:    "refresh_token",
+	}
+
+	response, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
+		RequestTimeout: 10 * time.Second,
+		Type:           PTGUhttp.TypeFormURLEncoded,
+		Method:         http.MethodPost,
+		URL:            ValidateTokenURL,
+		Headers: map[string]string{
+			"Content-Type": "application/x-www-form-urlencoded",
+		},
+		Body: requestBody,
+	})
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.ValidateRefreshToken()]->HTTP Request Error")
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return returnData, errors.New("[Error][PTGUoauth][Apple.ValidateRefreshToken()]->HTTP Request Error or Invalid Refresh Token")
+	}
+
+	err = PTGUhttp.ParseJsonResponseToStruct(PTGUhttp.ParamParseJsonResponseToStruct{
+		ResponseBody:   response.ResponseBody,
+		ResponseStruct: &returnData,
+	})
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.ValidateRefreshToken()]->Parse Json Response To Struct Error")
+	}
+
+	return returnData, nil
+}
+
+// !RevokeToken
+const (
+	TypeAccessToken  = "access_token"
+	TypeRefreshToken = "refresh_token"
+)
+
+type requestBodyRevokeToken struct {
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
+	Token        string `form:"token"`
+	TokenType    string `form:"token_type_hint"`
+}
+
+func (receiver *appleOAuthReceiverArgument) RevokeToken(token string, tokenType string) (err error) {
+	if token == "" {
+		return errors.New("[Error][PTGUoauth][Apple.RevokeToken()]->Token is empty")
+	}
+
+	if tokenType == "" || (tokenType != TypeAccessToken && tokenType != TypeRefreshToken) {
+		return errors.New("[Error][PTGUoauth][Apple.RevokeToken()]->Token Type is empty")
+	}
+
+	requestBody := requestBodyRevokeToken{
+		ClientID:     receiver.oauthConfig.ClientID,
+		ClientSecret: receiver.oauthConfig.PrivateKey,
+		Token:        token,
+		TokenType:    tokenType,
+	}
+
+	response, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
+		RequestTimeout: 10 * time.Second,
+		Type:           PTGUhttp.TypeFormURLEncoded,
+		Method:         http.MethodPost,
+		URL:            RevokeTokenURL,
+		Headers: map[string]string{
+			"Content-Type": "application/x-www-form-urlencoded",
+		},
+		Body: requestBody,
+	})
+	if err != nil {
+		return errors.Wrap(err, "[Error][PTGUoauth][Apple.RevokeToken()]->HTTP Request Error")
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return errors.New("[Error][PTGUoauth][Apple.RevokeToken()]->HTTP Request Error or Invalid Token")
+	}
+
+	return nil
 }
