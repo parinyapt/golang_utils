@@ -118,3 +118,10 @@ if err != nil {
   panic(err)
 }
 ```
+
+#### REF
+- https://developer.okta.com/blog/2019/06/04/what-the-heck-is-sign-in-with-apple
+- https://developer.apple.com/documentation/sign_in_with_apple/sign_in_with_apple_rest_api/authenticating_users_with_sign_in_with_apple
+- https://medium.com/@sirajul.anik/sign-in-with-apple-verify-mobile-app-payload-under-5-minutes-for-backend-developers-d69c2217ddec
+- https://github.com/Timothylock/go-signin-with-apple
+- https://sarunw.com/posts/sign-in-with-apple-4/
