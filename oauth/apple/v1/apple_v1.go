@@ -211,11 +211,7 @@ func (receiver *appleOAuthReceiverArgument) GetIDTokenInfoWithPublicKeyValidatio
 	})
 
 	if err != nil || !token.Valid {
-		if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
-			return returnData, isValidatePass, nil
-		} else {
-			return returnData, isValidatePass, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Token is Invalid")
-		}
+		return returnData, isValidatePass, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfoWithPublicKeyValidation()]->Token is Invalid")
 	}
 
 	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
