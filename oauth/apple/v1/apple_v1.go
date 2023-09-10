@@ -13,8 +13,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	PTGUhttp "github.com/parinyapt/golang_utils/http/v1"
 	"github.com/pkg/errors"
+
+	PTGUhttp "github.com/parinyapt/golang_utils/http/v1"
 )
 
 const (
@@ -44,6 +45,9 @@ type AppleOAuthMethod interface {
 
 	// GetApplePublicKey is a function to get apple's public key for verifying token signature
 	GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error)
+
+	// ValidateAuthorizationCode is a function to validate authorization code from apple and get access token / id token / refresh token [required platform = PlatformWeb or PlatformApp]
+	ValidateAuthorizationCode(authorizationCode string, platform string) (returnData AppleValidateAuthorizationCodeResponse, err error)
 }
 
 type AppleOAuthConfig struct {
@@ -259,102 +263,6 @@ func (receiver *appleOAuthReceiverArgument) GetIDTokenInfoWithPublicKeyValidatio
 	return returnData, isValidatePass, nil
 }
 
-// type ReturnAppleGetIDTokenInfo struct {
-// 	Data struct {
-// 		Subject        string `json:"sub"`
-// 		Email          string `json:"email"`
-// 		EmailVerified  bool `json:"email_verified"`
-// 		IsPrivateEmail bool `json:"is_private_email"`
-// 	}
-// 	Claims jwt.MapClaims
-// }
-
-// type OptionAppleGetIDTokenInfo struct {
-// 	NotIssuedBeforeTime time.Time
-// }
-
-// func (receiver *appleOAuthReceiverArgument) GetIDTokenInfo(idToken string, option OptionAppleGetIDTokenInfo) (returnData ReturnAppleGetIDTokenInfo, err error) {
-// 	if idToken == "" {
-// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->ID Token is empty")
-// 	}
-
-// token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
-// 	// Fetch Apple's public key
-// 	publicKey, err := GetApplePublicKey(token.Header["kid"].(string))
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Get Apple Public Key Error")
-// 	}
-// 	// Parse Apple's public key to *rsa.PublicKey
-// 	modulus, _ := base64.RawURLEncoding.DecodeString(publicKey.N)
-// 	exponent, _ := base64.RawURLEncoding.DecodeString(publicKey.E)
-// 	return &rsa.PublicKey{
-// 		N: new(big.Int).SetBytes(modulus),
-// 		E: int(new(big.Int).SetBytes(exponent).Uint64()),
-// 	}, nil
-// })
-
-// if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected signing method")
-// }
-
-// claims, ok := token.Claims.(jwt.MapClaims)
-// if !ok {
-// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected claims type")
-// }
-
-// if claims["iss"] != "https://appleid.apple.com" {
-// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->iss is not https://appleid.apple.com")
-// }
-
-// if claims["aud"] != receiver.oauthConfig.ClientID {
-// 	return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->aud is not client id")
-// }
-
-// 	if err != nil || !token.Valid {
-// 		if errors.Is(err, jwt.ErrTokenMalformed) {
-// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Malformed")
-// 		} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
-// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Expired or Not Valid Yet")
-// 		} else if errors.Is(err, jwt.ErrTokenSignatureInvalid) || errors.Is(err, jwt.ErrInvalidKey) || errors.Is(err, jwt.ErrInvalidKeyType) {
-// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token Key is Invalid")
-// 		} else {
-// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Invalid")
-// 		}
-// 	}
-
-// 	if sub, ok := claims["sub"].(string); ok {
-// 		returnData.Data.Subject = sub
-// 	}
-
-// 	if email, ok := claims["email"].(string); ok {
-// 		returnData.Data.Email = email
-// 	}
-
-// 	if email_verified, ok := claims["email_verified"].(bool); ok {
-// 		returnData.Data.EmailVerified = email_verified
-// 	}else{
-// 		email_verified, err := strconv.ParseBool(claims["email_verified"].(string))
-// 		if err != nil {
-// 			return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Parse Bool email_verified Error")
-// 		}
-// 		returnData.Data.EmailVerified = email_verified
-// 	}
-
-// 	if is_private_email, ok := claims["is_private_email"].(bool); ok {
-// 		returnData.Data.IsPrivateEmail = is_private_email
-// 	}else{
-// 		is_private_email, err := strconv.ParseBool(claims["is_private_email"].(string))
-// 		if err != nil {
-// 			return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Parse Bool is_private_email Error")
-// 		}
-// 		returnData.Data.IsPrivateEmail = is_private_email
-// 	}
-
-// 	returnData.Claims = claims
-
-// 	return returnData, nil
-// }
-
 // !GetApplePublicKey
 type ResponseApplePublicKey struct {
 	Kty string `json:"kty"`
@@ -401,4 +309,92 @@ func GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error
 	}
 
 	return returnData, errors.New("[Error][PTGUoauth][GetApplePublicKey()]->Public Key Not Found")
+}
+
+type AppleValidateAuthorizationCodeResponse struct {
+	AccessToken  string  `json:"access_token"`
+	TokenType    string  `json:"token_type"`
+	ExpiresIn    int     `json:"expires_in"`
+	IDToken      string  `json:"id_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// !ValidateAuthorizationCode
+type requestBodyValidateAuthorizationCodeFromWeb struct {
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
+	Code         string `form:"code"`
+	GrantType    string `form:"grant_type"`
+	RedirectURI  string `form:"redirect_uri"`
+}
+
+type requestBodyValidateAuthorizationCodeFromApp struct {
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
+	Code         string `form:"code"`
+	GrantType    string `form:"grant_type"`
+}
+
+const (
+	PlatformWeb = "web"
+	PlatformApp = "app"
+)
+
+func (receiver *appleOAuthReceiverArgument) ValidateAuthorizationCode(authorizationCode string, platform string) (returnData AppleValidateAuthorizationCodeResponse, err error) {
+	if authorizationCode == "" {
+		return returnData, errors.New("[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->Authorization Code is empty")
+	}
+
+	clientSecret, err := receiver.GenerateClientSecret(5 * time.Minute)
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->Generate Client Secret Error")
+	}
+
+	var requestBody interface{}
+	if platform == PlatformWeb {
+		requestBody = requestBodyValidateAuthorizationCodeFromWeb{
+			ClientID:     receiver.oauthConfig.ClientID,
+			ClientSecret: clientSecret,
+			Code:         authorizationCode,
+			GrantType:    "authorization_code",
+			RedirectURI:  receiver.oauthConfig.RedirectURL,
+		}
+	}else if platform == PlatformApp {
+		requestBody = requestBodyValidateAuthorizationCodeFromApp{
+			ClientID:     receiver.oauthConfig.ClientID,
+			ClientSecret: clientSecret,
+			Code:         authorizationCode,
+			GrantType:    "authorization_code",
+		}
+	}else{
+		return returnData, errors.New("[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->Platform is invalid")
+	}
+
+	response, err := PTGUhttp.HTTPRequest(PTGUhttp.ParamHTTPRequest{
+		RequestTimeout: 10 * time.Second,
+		Type:   PTGUhttp.TypeFormURLEncoded,
+		Method: http.MethodPost,
+		URL:    ValidateTokenURL,
+		Headers: map[string]string{
+			"Content-Type": "application/x-www-form-urlencoded",
+		},
+		Body: requestBody,
+	})
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->HTTP Request Error")
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return returnData, errors.New("[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->HTTP Request Error or Invalid Authorization Code")
+	}
+
+	err = PTGUhttp.ParseJsonResponseToStruct(PTGUhttp.ParamParseJsonResponseToStruct{
+		ResponseBody:   response.ResponseBody,
+		ResponseStruct: &returnData,
+	})
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.ValidateAuthorizationCode()]->Parse Json Response To Struct Error")
+	}
+
+	return returnData, nil
 }
