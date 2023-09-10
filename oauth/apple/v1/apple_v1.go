@@ -35,7 +35,7 @@ type AppleOAuthMethod interface {
 	GenerateOAuthURL(option OptionAppleGenerateOAuthURL) (oauthURL string)
 
 	// GenerateClientSecret is a function to generate client secret for validate token
-	GenerateClientSecret() (clientSecret string, err error)
+	GenerateClientSecret(expireIn time.Duration) (clientSecret string, err error)
 
 	// GetIDTokenInfo is a function to get information from id token
 	GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error)
