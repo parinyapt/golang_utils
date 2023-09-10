@@ -1,13 +1,10 @@
 package PTGUoauth
 
 import (
-	"crypto/rsa"
-	"encoding/base64"
-	"math/big"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	PTGUhttp "github.com/parinyapt/golang_utils/http/v1"
@@ -30,11 +27,17 @@ type AppleOAuthMethod interface {
 	// Condition for generate oauth url (https://developer.apple.com/documentation/sign_in_with_apple/sign_in_with_apple_js/incorporating_sign_in_with_apple_into_other_platforms)
 	GenerateOAuthURL(option OptionAppleGenerateOAuthURL) (oauthURL string)
 
-	// GetIDTokenInfo is a function to get verify id token from apple and get information from id token
-	GetIDTokenInfo(idToken string, option OptionAppleGetIDTokenInfo) (returnData ReturnAppleGetIDTokenInfo, err error)
+	// GetIDTokenInfo is a function to get information from id token
+	GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error)
+
+	// GetIDTokenInfoWithKeyValidation is a function to get verify id token from apple and get information from id token
+	// GetIDTokenInfoWithKeyValidation(idToken string, option OptionAppleGetIDTokenInfoWithKeyValidation) (returnData ReturnAppleGetIDTokenInfoWithKeyValidation, isValidatePass bool, err error)
 
 	// GetApplePublicKey is a function to get apple's public key for verifying token signature
 	GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error)
+
+	// GenerateClientSecret is a function to generate client secret for validate token
+	GenerateClientSecret() (clientSecret string, err error)
 }
 
 type AppleOAuthConfig struct {
@@ -94,45 +97,31 @@ func (receiver *appleOAuthReceiverArgument) GenerateOAuthURL(option OptionAppleG
 }
 
 // !GetIDTokenInfo
-type ReturnAppleGetIDTokenInfo struct {
-	Subject        string `json:"sub"`
-	Audience       string `json:"aud"`
-	ExpiresAt      int    `json:"exp"`
-	IssuedAt       int    `json:"iat"`
-	Chash          string `json:"c_hash"`
-	Email          string `json:"email"`
-	EmailVerified  string `json:"email_verified"`
-	IsPrivateEmail string `json:"is_private_email"`
-	AuthTime       int    `json:"auth_time"`
-	NonceSupported bool   `json:"nonce_supported"`
+type AppleIDTokenInfo struct {
+	Issuer         string  `json:"iss"`
+	Subject        string  `json:"sub"`
+	Audience       string  `json:"aud"`
+	IssuedAt       int64   `json:"iat"`
+	ExpiresAt      int64   `json:"exp"`
+	Nonce          *string `json:"nonce,omitempty"`
+	NonceSupported *bool   `json:"nonce_supported,omitempty"`
+	Email          *string `json:"email,omitempty"`
+	EmailVerified  *string `json:"email_verified,omitempty"`
+	IsPrivateEmail *string `json:"is_private_email,omitempty"`
+	RealUserStatus *int    `json:"real_user_status,omitempty"`
+	TransferSub    *string `json:"transfer_sub,omitempty"`
+	CHash          *string `json:"c_hash,omitempty"`
+	AuthTime       *int64  `json:"auth_time,omitempty"`
 }
 
-type OptionAppleGetIDTokenInfo struct {
-	NotIssuedBeforeTime time.Time
-}
-
-func (receiver *appleOAuthReceiverArgument) GetIDTokenInfo(idToken string, option OptionAppleGetIDTokenInfo) (returnData ReturnAppleGetIDTokenInfo, err error) {
+func GetIDTokenInfo(idToken string) (returnData AppleIDTokenInfo, err error) {
 	if idToken == "" {
 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->ID Token is empty")
 	}
 
-	token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
-		// Fetch Apple's public key
-		publicKey, err := GetApplePublicKey(token.Header["kid"].(string))
-		if err != nil {
-			return nil, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Get Apple Public Key Error")
-		}
-		// Parse Apple's public key to *rsa.PublicKey
-		modulus, _ := base64.RawURLEncoding.DecodeString(publicKey.N)
-		exponent, _ := base64.RawURLEncoding.DecodeString(publicKey.E)
-		return &rsa.PublicKey{
-			N: new(big.Int).SetBytes(modulus),
-			E: int(new(big.Int).SetBytes(exponent).Uint64()),
-		}, nil
-	})
-
-	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected signing method")
+	token, _, err := new(jwt.Parser).ParseUnverified(idToken, jwt.MapClaims{})
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->ParseUnverified Token Error")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -140,39 +129,117 @@ func (receiver *appleOAuthReceiverArgument) GetIDTokenInfo(idToken string, optio
 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected claims type")
 	}
 
-	if claims["iss"] != "https://appleid.apple.com" {
-		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->iss is not https://appleid.apple.com")
+	claimsJsonData, err := json.Marshal(claims)
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Marshal Claims Error")
+	}
+	var appleIDTokenInfoStruct AppleIDTokenInfo
+	err = json.Unmarshal(claimsJsonData, &appleIDTokenInfoStruct)
+	if err != nil {
+		return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unmarshal Claims Error")
 	}
 
-	if claims["aud"] != receiver.oauthConfig.ClientID {
-		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->aud is not client id")
-	}
-
-	if err != nil || !token.Valid {
-		if errors.Is(err, jwt.ErrTokenMalformed) {
-			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Malformed")
-		} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
-			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Expired or Not Valid Yet")
-		} else if errors.Is(err, jwt.ErrTokenSignatureInvalid) || errors.Is(err, jwt.ErrInvalidKey) || errors.Is(err, jwt.ErrInvalidKeyType) || errors.Is(err, jwt.ErrHashUnavailable) {
-			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token Key is Invalid")
-		} else {
-			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Invalid")
-		}
-	}
-
-	returnData.Subject = claims["sub"].(string)
-	returnData.Audience = claims["aud"].(string)
-	returnData.ExpiresAt = int(claims["exp"].(float64))
-	returnData.IssuedAt = int(claims["iat"].(float64))
-	returnData.Chash = claims["c_hash"].(string)
-	returnData.Email = claims["email"].(string)
-	returnData.EmailVerified = claims["email_verified"].(string)
-	returnData.IsPrivateEmail = claims["is_private_email"].(string)
-	returnData.AuthTime = int(claims["auth_time"].(float64))
-	returnData.NonceSupported = claims["nonce_supported"].(bool)
-
+	returnData = appleIDTokenInfoStruct
+	
 	return returnData, nil
 }
+
+// !GetIDTokenInfoWithKeyValidation
+// type ReturnAppleGetIDTokenInfo struct {
+// 	Data struct {
+// 		Subject        string `json:"sub"`
+// 		Email          string `json:"email"`
+// 		EmailVerified  bool `json:"email_verified"`
+// 		IsPrivateEmail bool `json:"is_private_email"`
+// 	}
+// 	Claims jwt.MapClaims
+// }
+
+// type OptionAppleGetIDTokenInfo struct {
+// 	NotIssuedBeforeTime time.Time
+// }
+
+// func (receiver *appleOAuthReceiverArgument) GetIDTokenInfo(idToken string, option OptionAppleGetIDTokenInfo) (returnData ReturnAppleGetIDTokenInfo, err error) {
+// 	if idToken == "" {
+// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->ID Token is empty")
+// 	}
+
+// 	token, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
+// 		// Fetch Apple's public key
+// 		publicKey, err := GetApplePublicKey(token.Header["kid"].(string))
+// 		if err != nil {
+// 			return nil, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Get Apple Public Key Error")
+// 		}
+// 		// Parse Apple's public key to *rsa.PublicKey
+// 		modulus, _ := base64.RawURLEncoding.DecodeString(publicKey.N)
+// 		exponent, _ := base64.RawURLEncoding.DecodeString(publicKey.E)
+// 		return &rsa.PublicKey{
+// 			N: new(big.Int).SetBytes(modulus),
+// 			E: int(new(big.Int).SetBytes(exponent).Uint64()),
+// 		}, nil
+// 	})
+
+// 	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected signing method")
+// 	}
+
+// 	claims, ok := token.Claims.(jwt.MapClaims)
+// 	if !ok {
+// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Unexpected claims type")
+// 	}
+
+// 	if claims["iss"] != "https://appleid.apple.com" {
+// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->iss is not https://appleid.apple.com")
+// 	}
+
+// 	if claims["aud"] != receiver.oauthConfig.ClientID {
+// 		return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->aud is not client id")
+// 	}
+
+// 	if err != nil || !token.Valid {
+// 		if errors.Is(err, jwt.ErrTokenMalformed) {
+// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Malformed")
+// 		} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Expired or Not Valid Yet")
+// 		} else if errors.Is(err, jwt.ErrTokenSignatureInvalid) || errors.Is(err, jwt.ErrInvalidKey) || errors.Is(err, jwt.ErrInvalidKeyType) {
+// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token Key is Invalid")
+// 		} else {
+// 			return returnData, errors.New("[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Token is Invalid")
+// 		}
+// 	}
+
+// 	if sub, ok := claims["sub"].(string); ok {
+// 		returnData.Data.Subject = sub
+// 	}
+
+// 	if email, ok := claims["email"].(string); ok {
+// 		returnData.Data.Email = email
+// 	}
+
+// 	if email_verified, ok := claims["email_verified"].(bool); ok {
+// 		returnData.Data.EmailVerified = email_verified
+// 	}else{
+// 		email_verified, err := strconv.ParseBool(claims["email_verified"].(string))
+// 		if err != nil {
+// 			return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Parse Bool email_verified Error")
+// 		}
+// 		returnData.Data.EmailVerified = email_verified
+// 	}
+
+// 	if is_private_email, ok := claims["is_private_email"].(bool); ok {
+// 		returnData.Data.IsPrivateEmail = is_private_email
+// 	}else{
+// 		is_private_email, err := strconv.ParseBool(claims["is_private_email"].(string))
+// 		if err != nil {
+// 			return returnData, errors.Wrap(err, "[Error][PTGUoauth][Apple.GetIDTokenInfo()]->Parse Bool is_private_email Error")
+// 		}
+// 		returnData.Data.IsPrivateEmail = is_private_email
+// 	}
+
+// 	returnData.Claims = claims
+
+// 	return returnData, nil
+// }
 
 // !GetApplePublicKey
 type ResponseApplePublicKey struct {
