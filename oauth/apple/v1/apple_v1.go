@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -45,6 +46,8 @@ type AppleOAuthMethod interface {
 
 	// GetApplePublicKey is a function to get apple's public key for verifying token signature
 	GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error)
+
+	GetApplePrivateKeyFromFile(filename string) (privateKey string, err error)
 
 	// ValidateAuthorizationCode is a function to validate authorization code from apple and get access token / id token / refresh token [required platform = PlatformWeb or PlatformApp]
 	ValidateAuthorizationCode(authorizationCode string, platform string) (returnData AppleValidateAuthorizationCodeResponse, err error)
@@ -315,6 +318,15 @@ func GetApplePublicKey(kid string) (returnData ResponseApplePublicKey, err error
 	}
 
 	return returnData, errors.New("[Error][PTGUoauth][GetApplePublicKey()]->Public Key Not Found")
+}
+
+// !GetApplePrivateKeyFromFile
+func GetApplePrivateKeyFromFile(filename string) (privateKey string, err error) {
+	bytes, err := os.ReadFile(filename)
+	if err != nil {
+		return "", errors.Wrap(err, "[Error][PTGUoauth][GetApplePrivateKeyFromFile()]->Read File Error")
+	}
+	return string(bytes), nil
 }
 
 // !ValidateAuthorizationCode
