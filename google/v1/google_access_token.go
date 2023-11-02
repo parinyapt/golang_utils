@@ -26,7 +26,7 @@ func (receiver googleReceiverArgument) GenerateGoolgeAccessTokenWithoutOAuth(ctx
 
 	token, err := conf.TokenSource(ctx).Token()
 	if err != nil {
-		return "", errors.Wrap(err, "[Error][PTGUgoogle][Google.GenerateGoolgeAccessTokenWithoutOAuth()]->Get access token from google error")
+		return "", errors.Wrap(err, "[Error][PTGUgoogle][Google.GenerateGoolgeAccessTokenWithoutOAuth()]->Get access token with out oauth error")
 	}
 
 	return token.AccessToken, nil
