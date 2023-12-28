@@ -27,9 +27,15 @@ type ParamHTTPRequest struct {
 	Method         string `json:"method" validate:"required,oneof=GET POST PUT PATCH DELETE"`
 	URL            string `json:"url" validate:"required,http_url"`
 	Query          map[string]string
+	BasicAuth      ParamBasicAuth
 	Headers        map[string]string
 	Body           interface{}
 	RequestTimeout time.Duration
+}
+
+type ParamBasicAuth struct {
+	Username string
+	Password string
 }
 
 type ReturnHTTPRequest struct {
@@ -89,6 +95,10 @@ func HTTPRequest(param ParamHTTPRequest) (returnData ReturnHTTPRequest, err erro
 	request, err := http.NewRequest(param.Method, param.URL, body)
 	if err != nil {
 		return returnData, errors.Wrap(err, "[Error][PTGUhttp][HTTPRequest()]->New request error")
+	}
+
+	if len(param.BasicAuth.Username) > 0 {
+		request.SetBasicAuth(param.BasicAuth.Username, param.BasicAuth.Password)
 	}
 
 	for key, value := range param.Headers {
