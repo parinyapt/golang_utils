@@ -64,6 +64,8 @@ func ValidatorErrorMessage(errTag string, errParam interface{}) string {
 		return "This field must contain letters and spaces only"
 	case "alpha_space_th":
 		return "This field must contain letters and spaces only"
+	case "alpha_th":
+		return "This field must contain letters only"
 	// case "gte":
 	// 	return "This field must be greater than or equal to %s"
 	// case "lte":
@@ -87,6 +89,7 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 	validate.RegisterValidation("time", customeValidateTime)
 	validate.RegisterValidation("alpha_space", customeValidateAlphaSpace)
 	validate.RegisterValidation("alpha_space_th", customeValidateAlphaSpaceTH)
+	validate.RegisterValidation("alpha_th", customeValidateAlphaTH)
 
 	if err := validate.Struct(validateStruct); err != nil {
 		var listValidateError []ValidatorErrorFieldListStruct
@@ -202,3 +205,10 @@ func customeValidateAlphaSpaceTH(fl validator.FieldLevel) bool {
 	return regex.MatchString(fl.Field().String())
 }
 // Ref regex https://www.ninenik.com/%E0%B9%81%E0%B8%99%E0%B8%A7%E0%B8%97%E0%B8%B2%E0%B8%87%E0%B8%95%E0%B8%A3%E0%B8%A7%E0%B8%88%E0%B8%82%E0%B9%89%E0%B8%AD%E0%B8%A1%E0%B8%B9%E0%B8%A5%E0%B9%80%E0%B8%89%E0%B8%9E%E0%B8%B2%E0%B8%B0%E0%B8%A0%E0%B8%B2%E0%B8%A9%E0%B8%B2%E0%B9%84%E0%B8%97%E0%B8%A2_%E0%B8%A0%E0%B8%B2%E0%B8%A9%E0%B8%B2%E0%B8%AD%E0%B8%B1%E0%B8%87%E0%B8%81%E0%B8%A4%E0%B8%A9%E0%B8%94%E0%B9%89%E0%B8%A7%E0%B8%A2_Regular_Expression-877.html
+
+func customeValidateAlphaTH(fl validator.FieldLevel) bool {
+	regexString := `^[a-zA-Zก-๏]+$`
+	regex := regexp.MustCompile(regexString)
+	
+	return regex.MatchString(fl.Field().String())
+}
