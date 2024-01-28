@@ -41,3 +41,7 @@ func main() {
 	fmt.Println("Verified")
 }
 ```
+
+#### REF
+- https://developers.google.com/admob/android/ssv
+- https://github.com/hiyali/go-lib-ssv
