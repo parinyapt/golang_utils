@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -107,36 +109,49 @@ func parsePublicKey(publicKey string) (*ecdsa.PublicKey, error) {
 	return nil, errors.New("[Error][PTGUssv.Admob][parsePublicKey()]->Public key type invalid")
 }
 
+type ecdsaSignature struct {
+	R, S *big.Int
+}
+
 func Verify(callBackUrl url.URL, publicKey *map[string]ResponseAdmobKeyData) (err error) {
 	// Unescape query params
 	fullQueryParams, err := url.QueryUnescape(callBackUrl.RawQuery)
 	if err != nil {
-		return errors.New("[Error][PTGUssv][Verify()]->Unescape query params error")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Unescape query params error")
 	}
 
 	// Find index of signature
 	signatureIndex := strings.Index(fullQueryParams, "&signature=")
 	if signatureIndex == -1 {
-		return errors.New("[Error][PTGUssv][Verify()]->Signature not found")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Signature not found")
 	}
 
 	// Select only query params before signature and hash it
 	verifyQueryParam := fullQueryParams[:signatureIndex]
 	if len(verifyQueryParam) == 0 {
-		return errors.New("[Error][PTGUssv][Verify()]->Query params not found")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Query params not found")
 	}
 	verifyQueryParamHash := hash([]byte(verifyQueryParam))
 
 	// Get signature from query params
 	signature := callBackUrl.Query().Get("signature")
 	if len(signature) == 0 {
-		return errors.New("[Error][PTGUssv][Verify()]->Signature not found")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Signature not found")
+	}
+	signatureDecode, err := base64.RawURLEncoding.DecodeString(signature)
+	if err != nil {
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Base64 Decode signature error")
+	}
+	ecdsaSignature := &ecdsaSignature{}
+	_, err = asn1.Unmarshal(signatureDecode, ecdsaSignature)
+	if err != nil {
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Asn1 Unmarshal signature error")
 	}
 
 	// Get key_id from query params
 	keyId := callBackUrl.Query().Get("key_id")
 	if len(keyId) == 0 {
-		return errors.New("[Error][PTGUssv][Verify()]->Key id not found")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Key id not found")
 	}
 
 	// Get public key from key_id
@@ -148,28 +163,25 @@ func Verify(callBackUrl url.URL, publicKey *map[string]ResponseAdmobKeyData) (er
 		*publicKey = make(map[string]ResponseAdmobKeyData)
 		response, err := FetchPublicKey()
 		if err != nil {
-			return errors.New("[Error][PTGUssv][Verify()]->Fetch public key error")
+			return errors.New("[Error][PTGUssv.Admob][Verify()]->Fetch public key error")
 		}
 		*publicKey, err = ParseKeyToMap(response)
 		if err != nil {
-			return errors.New("[Error][PTGUssv][Verify()]->Parse public key error")
+			return errors.New("[Error][PTGUssv.Admob][Verify()]->Parse public key error")
 		}
 		publicKeyData, exists = (*publicKey)[keyId]
 		if !exists {
-			return errors.New("[Error][PTGUssv][Verify()]->Public key not found")
+			return errors.New("[Error][PTGUssv.Admob][Verify()]->Public key not found")
 		}
 	}
 	verifyPublicKey, err := parsePublicKey(publicKeyData.Pem)
 	if err != nil {
-		return errors.New("[Error][PTGUssv][Verify()]->Parse public key error")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Parse public key error")
 	}
 
-	verifyR := big.NewInt(0).SetBytes([]byte(signature[:len(signature)/2]))
-	verifyS := big.NewInt(0).SetBytes([]byte(signature[len(signature)/2:]))
-
-	verified := ecdsa.Verify(verifyPublicKey, verifyQueryParamHash, verifyR, verifyS)
+	verified := ecdsa.Verify(verifyPublicKey, verifyQueryParamHash, ecdsaSignature.R, ecdsaSignature.S)
 	if !verified {
-		return errors.New("Signature not valid")
+		return errors.New("[Error][PTGUssv.Admob][Verify()]->Signature not verified")
 	}
 
 	return nil
