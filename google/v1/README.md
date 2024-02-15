@@ -47,6 +47,29 @@ if err != nil {
 fmt.Println(response.OrderID)
 fmt.Println(response.PurchaseTimeMillis)
 ```
+
+### Verify Google Play Subscription Purchase
+- Don't forget to add scope `https://www.googleapis.com/auth/androidpublisher` in `Scopes` when generate access token
+```go
+googleToken := PTGUgoogle.NewGoogle(&PTGUgoogle.GoogleConfig{
+  AccessToken: token,
+})
+response, err := googleToken.ValidateGoogleSubscriptionsPurchase(PTGUgoogle.GoogleSubscriptionsPurchaseValidateParam{
+  PackageName:   "com.xxx.xxx",
+  PurchaseToken: "XXXXXX",
+})
+if err != nil {
+  panic(err)
+}
+fmt.Println(response.subscriptionState)
+fmt.Println(response.latestOrderId)
+
+if response.LinkedPurchaseToken != nil {
+  fmt.Println(PTGUdata.PointerToStringValue(response.LinkedPurchaseToken))
+}else{
+  fmt.Println("Response LinkedPurchaseToken is nil")
+}
+```
 Documentations:
 - Config and Give Permission to Service Account - Google Play Developer API (https://developers.google.com/android-publisher/getting_started)
 - Fix error insufficient permissions (https://stackoverflow.com/questions/43536904/google-play-developer-api-the-current-user-has-insufficient-permissions-to-pe)
