@@ -110,7 +110,7 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 			customFieldName, errGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
 				SelectStruct: errorStruct,
 				FieldName:    structInfo[currentStructFieldName],
-				TagName:      []string{"json", "form", "uri", "header"},
+				TagName:      []string{"json", "form", "uri", "header", "mapstructure"},
 			})
 			if errGetStructTagValue != nil {			
 				return false, nil, errors.Wrap(errGetStructTagValue, "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
@@ -124,7 +124,7 @@ func Validate(validateStruct interface{}) (isValidatePass bool, errorFieldList [
 					tempCustomFieldName, errGetStructTagValue := PTGUstruct.GetStructTagValue(PTGUstruct.GetStructTagValueParam{
 						SelectStruct: errorStruct,
 						FieldName:    structInfo[currentStructFieldName],
-						TagName:      []string{"json", "form", "uri", "header"},
+						TagName:      []string{"json", "form", "uri", "header", "mapstructure"},
 					})
 					if errGetStructTagValue != nil {			
 						return false, nil, errors.Wrap(errGetStructTagValue, "[Error][PTGUvalidator][Validate()]->Get Field Name Error")		
