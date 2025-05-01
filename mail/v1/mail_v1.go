@@ -1,6 +1,10 @@
 package PTGUmail
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	gomail "gopkg.in/gomail.v2"
 )
@@ -17,10 +21,11 @@ type ParamConfigSendMail struct {
 }
 
 type ParamConfigSendMailSMTP struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
+	Host                  string
+	Port                  int
+	Username              string
+	Password              string
+	AutoGenerateMessageId bool
 }
 
 type ParamConfigSendMailFrom struct {
@@ -63,6 +68,11 @@ func SendMail(config ParamConfigSendMail) error {
 	m.SetHeader("To", config.To.Email...)
 	m.SetHeader("Subject", config.To.Subject)
 	m.SetBody("text/"+config.To.BodyType, config.To.Body)
+
+	if config.SMTP.AutoGenerateMessageId {
+		messageId := fmt.Sprintf("<%d.%s@%s>", time.Now().Nanosecond(), uuid.New().String(), config.SMTP.Host)
+		m.SetHeader("message-id", messageId)
+	}
 
 	d := gomail.NewDialer(config.SMTP.Host, config.SMTP.Port, config.SMTP.Username, config.SMTP.Password)
 
