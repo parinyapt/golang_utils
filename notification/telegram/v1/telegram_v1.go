@@ -30,7 +30,7 @@ type TelegramSendMessageOption struct {
 	ParseMode             *string `json:"parse_mode,omitempty"`
 	DisableWebPagePreview *bool   `json:"disable_web_page_preview,omitempty"`
 	DisableNotification   *bool   `json:"disable_notification,omitempty"`
-	ProtectContent        *bool   `json:"protect_content,omitempty"`
+	ReplyToMessageId      *int    `json:"reply_to_message_id,omitempty"`
 }
 
 type TelegramSendMessageErrorResponse struct {
